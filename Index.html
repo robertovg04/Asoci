@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RVG Roberto - Vídeos Verticais</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: pan-y; /* Permite scroll suave */
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100vh;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Container de vídeos com scroll vertical */
+        .videos-container {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Esconde scroll no Firefox */
+        }
+
+        .videos-container::-webkit-scrollbar {
+            display: none; /* Esconde scroll no Chrome/Safari */
+        }
+
+        /* Cada vídeo ocupa a tela inteira */
+        .video-wrapper {
+            height: 100vh;
+            width: 100%;
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Player de vídeo */
+        .video-player {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* Overlay com informações */
+        .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 30px 20px 20px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            color: white;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .video-info {
+            max-width: 70%;
+            pointer-events: auto;
+        }
+
+        .video-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff5e3a, #ff2a6d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.3rem;
+            border: 2px solid white;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .verified {
+            color: #3c9eff;
+            font-size: 1rem;
+        }
+
+        .video-caption {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            line-height: 1.4;
+            text-shadow: 0 1px 2px black;
+        }
+
+        .video-music {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #ddd;
+        }
+
+        /* Ações laterais (direita) */
+        .video-actions {
+            position: absolute;
+            right: 15px;
+            bottom: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        .action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            gap: 5px;
+        }
+
+        .action-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: 0.2s;
+            cursor: pointer;
+        }
+
+        .action-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .action-icon.liked {
+            background: #ff2a6d;
+            color: white;
+        }
+
+        .action-count {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* Barra de progresso */
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.2);
+            z-index: 30;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #ff5e3a;
+            transition: width 0.1s linear;
+        }
+
+        /* Header */
+        .video-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 30;
+            background: linear-gradient(180deg, rgba(0,0,0,0.5), transparent);
+            pointer-events: none;
+        }
+
+        .logo-header {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, #ff5e3a, #ff2a6d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 20px;
+            pointer-events: auto;
+        }
+
+        .header-icons i {
+            color: white;
+            font-size: 1.5rem;
+            filter: drop-shadow(0 2px 4px black);
+        }
+
+        /* Comentários modal */
+        .comments-modal {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-top-left-radius: 30px;
+            border-top-right-radius: 30px;
+            padding: 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+            max-height: 70vh;
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+
+        .comments-modal.show {
+            transform: translateY(0);
+        }
+
+        .comments-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .close-modal {
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #ff5e3a;
+        }
+
+        .comment-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+            color: white;
+        }
+
+        .comment-avatar {
+            width: 35px;
+            height: 35px;
+            background: #ff5e3a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .comment-content {
+            flex: 1;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: #ff5e3a;
+            margin-right: 8px;
+        }
+
+        .comment-text {
+            color: #ddd;
+        }
+
+        .comment-time {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .comment-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            position: sticky;
+            bottom: 0;
+            background: #1a1a1a;
+            padding: 10px 0;
+        }
+
+        .comment-input input {
+            flex: 1;
+            background: #333;
+            border: none;
+            padding: 15px;
+            border-radius: 30px;
+            color: white;
+            outline: none;
+        }
+
+        .comment-input button {
+            background: #ff5e3a;
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* Upload button */
+        .upload-btn {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff5e3a;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 5px 20px rgba(255,90,58,0.5);
+            border: none;
+            font-size: 1rem;
+        }
+
+        .upload-btn i {
+            font-size: 1.3rem;
+        }
+
+        /* Modal de upload */
+        .upload-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .upload-modal.show {
+            display: flex;
+        }
+
+        .upload-area {
+            background: #1e1e1e;
+            border-radius: 40px;
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 2px dashed #ff5e3a;
+        }
+
+        .upload-area i {
+            font-size: 4rem;
+            color: #ff5e3a;
+            margin-bottom: 20px;
+        }
+
+        .upload-area h2 {
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .upload-area input {
+            background: #333;
+            color: white;
+            padding: 15px;
+            border-radius: 30px;
+            width: 100%;
+            margin: 10px 0;
+            border: 1px solid #ff5e3a;
+        }
+
+        .upload-area textarea {
+            width: 100%;
+            background: #333;
+            border: none;
+            padding: 15px;
+            border-radius: 20px;
+            color: white;
+            margin: 10px 0;
+            height: 100px;
+            resize: none;
+        }
+
+        .upload-submit {
+            background: linear-gradient(45deg, #ff5e3a, #ff2a6d);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .close-upload {
+            margin-top: 20px;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="video-header">
+            <div class="logo-header">RVG</div>
+            <div class="header-icons">
+                <i class="fas fa-search"></i>
+                <i class="fas fa-bell"></i>
+                <i class="fas fa-inbox"></i>
+            </div>
+        </div>
+
+        <!-- Container de vídeos com scroll vertical -->
+        <div class="videos-container" id="videosContainer">
+            <!-- Vídeos serão inseridos aqui via JavaScript -->
+        </div>
+
+        <!-- Botão de upload -->
+        <button class="upload-btn" onclick="showUploadModal()">
+            <i class="fas fa-plus"></i>
+            Enviar vídeo
+        </button>
+
+        <!-- Modal de comentários -->
+        <div class="comments-modal" id="commentsModal">
+            <div class="comments-header">
+                <h3 style="color:white;">Comentários</h3>
+                <i class="fas fa-times close-modal" onclick="closeComments()"></i>
+            </div>
+            <div id="commentsList" style="max-height: 50vh; overflow-y: auto;">
+                <!-- Comentários serão inseridos aqui -->
+            </div>
+            <div class="comment-input">
+                <input type="text" id="commentText" placeholder="Escreva um comentário...">
+                <button onclick="addComment()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <!-- Modal de upload -->
+        <div class="upload-modal" id="uploadModal">
+            <div class="upload-area">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h2>Enviar vídeo</h2>
+                <input type="file" id="videoUpload" accept="video/*" onchange="previewVideo(this)">
+                <textarea id="videoCaption" placeholder="Legenda do vídeo..."></textarea>
+                <input type="text" id="videoUser" placeholder="Seu nome (opcional)" value="Visitante">
+                <button class="upload-submit" onclick="uploadVideo()">Publicar vídeo</button>
+                <div class="close-upload" onclick="hideUploadModal()">Cancelar</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== BANCO DE DADOS ====================
+        let videos = [
+            {
+                id: 1,
+                user: "Roberto RVG",
+                avatar: "R",
+                caption: "🔥 Lançamento oficial da RVG! Vem com a gente! #rvg #roberto",
+                music: "som original - RVG Roberto",
+                likes: 15432,
+                likedBy: [],
+                comments: [
+                    { user: "MC Kevin", text: "Já tô dentro! 🔥", time: Date.now() - 3600000 },
+                    { user: "Ana Silva", text: "Melhor rede social!", time: Date.now() - 7200000 }
+                ],
+                videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-recording-a-video-with-a-smartphone-42541-large.mp4",
+                time: Date.now() - 86400000
+            },
+            {
+                id: 2,
+                user: "MC Kevin",
+                avatar: "K",
+                caption: "🎵 Novo hit 'RVG Roberto' já disponível! Querem ouvir?",
+                music: "som original - MC Kevin",
+                likes: 8231,
+                likedBy: [],
+                comments: [
+                    { user: "Roberto RVG", text: "HIT CONFIRMADO! 🚀", time: Date.now() - 1800000 }
+                ],
+                videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-dancing-filming-herself-with-a-smartphone-42540-large.mp4",
+                time: Date.now() - 172800000
+            },
+            {
+                id: 3,
+                user: "Juliana Costa",
+                avatar: "J",
+                caption: "🌴 Direto da praia com a galera RVG!",
+                music: "som original - praia RVG",
+                likes: 3456,
+                likedBy: [],
+                comments: [],
+                videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-woman-talking-on-a-video-call-with-her-laptop-42539-large.mp4",
+                time: Date.now() - 259200000
+            }
+        ];
+
+        let currentVideoIndex = 0;
+        let currentVisitor = {
+            id: 'visitor_' + Date.now(),
+            name: 'Visitante_' + Math.floor(Math.random() * 1000),
+            avatar: 'V'
+        };
+        let currentVideoId = null;
+
+        // ==================== INICIALIZAÇÃO ====================
+        function loadVideos() {
+            const container = document.getElementById('videosContainer');
+            container.innerHTML = '';
+
+            videos.forEach((video, index) => {
+                const videoWrapper = document.createElement('div');
+                videoWrapper.className = 'video-wrapper';
+                videoWrapper.id = `video-${video.id}`;
+                
+                videoWrapper.innerHTML = `
+                    <video class="video-player" src="${video.videoUrl}" loop playsinline preload="metadata" 
+                           onloadedmetadata="setupVideo(${index}, this)" 
+                           onclick="togglePlay(${index})"></video>
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-${video.id}"></div>
+                    </div>
+                    
+                    <div class="video-overlay">
+                        <div class="video-info">
+                            <div class="video-user">
+                                <div class="user-avatar">${video.avatar}</div>
+                                <div class="user-name">
+                                    @${video.user}
+                                    ${video.user === 'Roberto RVG' ? '<i class="fas fa-check-circle verified"></i>' : ''}
+                                </div>
+                            </div>
+                            <div class="video-caption">${video.caption}</div>
+                            <div class="video-music">
+                                <i class="fas fa-music"></i>
+                                ${video.music}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="video-actions">
+                        <div class="action-item" onclick="likeVideo(${video.id})">
+                            <div class="action-icon ${video.likedBy.includes(currentVisitor.id) ? 'liked' : ''}" id="like-${video.id}">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <span class="action-count" id="likes-${video.id}">${formatNumber(video.likes)}</span>
+                        </div>
+                        
+                        <div class="action-item" onclick="openComments(${video.id})">
+                            <div class="action-icon">
+                                <i class="fas fa-comment"></i>
+                            </div>
+                            <span class="action-count" id="comments-${video.id}">${video.comments.length}</span>
+                        </div>
+                        
+                        <div class="action-item">
+                            <div class="action-icon">
+                                <i class="fas fa-share"></i>
+                            </div>
+                            <span class="action-count">Compartilhar</span>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(videoWrapper);
+            });
+
+            // Adicionar evento de scroll para controlar vídeos
+            container.addEventListener('scroll', handleScroll);
+        }
+
+        // ==================== CONTROLE DE VÍDEO ====================
+        function setupVideo(index, videoElement) {
+            // Configurações iniciais
+            videoElement.volume = 1;
+            
+            // Atualizar barra de progresso
+            videoElement.addEventListener('timeupdate', function() {
+                const progress = (this.currentTime / this.duration) * 100;
+                const videoId = videos[index].id;
+                document.getElementById(`progress-${videoId}`).style.width = progress + '%';
+            });
+
+            // Quando o vídeo terminar, reiniciar
+            videoElement.addEventListener('ended', function() {
+                this.currentTime = 0;
+                this.play();
+            });
+        }
+
+        function handleScroll() {
+            const container = document.getElementById('videosContainer');
+            const videos = document.querySelectorAll('.video-wrapper');
+            
+            let newIndex = -1;
+            
+            videos.forEach((video, index) => {
+                const rect = video.getBoundingClientRect();
+                const windowHeight = window.innerHeight;
+                
+                // Se o vídeo está ocupando mais de 50% da tela
+                if (rect.top < windowHeight/2 && rect.bottom > windowHeight/2) {
+                    newIndex = index;
+                }
+            });
+            
+            if (newIndex !== -1 && newIndex !== currentVideoIndex) {
+                playVideoAtIndex(newIndex);
+            }
+        }
+
+        function playVideoAtIndex(index) {
+            // Parar vídeo atual
+            const currentVideo = document.querySelectorAll('.video-player')[currentVideoIndex];
+            if (currentVideo) {
+                currentVideo.pause();
+            }
+            
+            // Tocar novo vídeo
+            const newVideo = document.querySelectorAll('.video-player')[index];
+            if (newVideo) {
+                newVideo.play().catch(e => console.log('Autoplay bloqueado:', e));
+                currentVideoIndex = index;
+            }
+        }
+
+        function togglePlay(index) {
+            const video = document.querySelectorAll('.video-player')[index];
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        }
+
+        // ==================== INTERAÇÕES ====================
+        function likeVideo(videoId) {
+            const video = videos.find(v => v.id === videoId);
+            const likeIcon = document.getElementById(`like-${videoId}`);
+            const likeCount = document.getElementById(`likes-${videoId}`);
+            
+            if (video.likedBy.includes(currentVisitor.id)) {
+                // Descurtir
+                video.likedBy = video.likedBy.filter(id => id !== currentVisitor.id);
+                video.likes--;
+                likeIcon.classList.remove('liked');
+            } else {
+                // Curtir
+                video.likedBy.push(currentVisitor.id);
+                video.likes++;
+                likeIcon.classList.add('liked');
+            }
+            
+            likeCount.textContent = formatNumber(video.likes);
+        }
+
+        function openComments(videoId) {
+            currentVideoId = videoId;
+            const video = videos.find(v => v.id === videoId);
+            const modal = document.getElementById('commentsModal');
+            const commentsList = document.getElementById('commentsList');
+            
+            let html = '';
+            video.comments.forEach(comment => {
+                html += `
+                    <div class="comment-item">
+                        <div class="comment-avatar">${comment.user.charAt(0)}</div>
+                        <div class="comment-content">
+                            <span class="comment-author">${comment.user}</span>
+                            <span class="comment-text">${comment.text}</span>
+                            <div class="comment-time">${formatTime(comment.time)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (video.comments.length === 0) {
+                html = '<div style="color:#888; text-align:center; padding:20px;">Nenhum comentário ainda. Seja o primeiro!</div>';
+            }
+            
+            commentsList.innerHTML = html;
+            modal.classList.add('show');
+        }
+
+        function closeComments() {
+            document.getElementById('commentsModal').classList.remove('show');
+        }
+
+        function addComment() {
+            const text = document.getElementById('commentText').value.trim();
+            if (!text || !currentVideoId) return;
+            
+            const video = videos.find(v => v.id === currentVideoId);
+            
+            video.comments.push({
+                user: currentVisitor.name,
+                text: text,
+                time: Date.now()
+            });
+            
+            document.getElementById('commentText').value = '';
+            openComments(currentVideoId); // Recarregar comentários
+            document.getElementById(`comments-${currentVideoId}`).textContent = video.comments.length;
+        }
+
+        // ==================== UPLOAD DE VÍDEO ====================
+        function showUploadModal() {
+            document.getElementById('uploadModal').classList.add('show');
+        }
+
+        function hideUploadModal() {
+            document.getElementById('uploadModal').classList.remove('show');
+        }
+
+        function previewVideo(input) {
+            if (input.files && input.files[0]) {
+                // Mostrar nome do arquivo
+                console.log('Arquivo selecionado:', input.files[0].name);
+            }
+        }
+
+        function uploadVideo() {
+            const fileInput = document.getElementById('videoUpload');
+            const caption = document.getElementById('videoCaption').value;
+            const userName = document.getElementById('videoUser').value || 'Visitante';
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Selecione um vídeo!');
+                return;
+            }
+            
+            // Criar URL temporária para o vídeo
+            const videoUrl = URL.createObjectURL(file);
+            
+            const newVideo = {
+                id: Date.now(),
+                user: userName,
+                avatar: userName.charAt(0).toUpperCase(),
+                caption: caption || 'Novo vídeo na RVG!',
+                music: 'som original - ' + userName,
+                likes: 0,
+                likedBy: [],
+                comments: [],
+                videoUrl: videoUrl,
+                time: Date.now()
+            };
+            
+            videos.push(newVideo);
+            hideUploadModal();
+            loadVideos(); // Recarregar todos os vídeos
+            
+            // Resetar form
+            fileInput.value = '';
+            document.getElementById('videoCaption').value = '';
+        }
+
+        // ==================== UTILITÁRIOS ====================
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num;
+        }
+
+        function formatTime(timestamp) {
+            const diff = Date.now() - timestamp;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (days > 0) return `${days}d`;
+            if (hours > 0) return `${hours}h`;
+            if (minutes > 0) return `${minutes}min`;
+            return 'agora';
+        }
+
+        // Iniciar app
+        loadVideos();
+        
+        // Tocar primeiro vídeo após carregar
+        setTimeout(() => {
+            const firstVideo = document.querySelector('.video-player');
+            if (firstVideo) {
+                firstVideo.play().catch(e => console.log('Autoplay bloqueado pelo navegador'));
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
